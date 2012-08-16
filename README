@@ -1,0 +1,36 @@
+Pikpoint synchronizes projects and actions from a locally running
+OmniFocus (OF) application with stories in an AgileZen (AZ) project.
+
+Each OF project corresponds to an AZ story.  An OF project's name,
+folder name, and context are displayed in its AZ story's text.  The OF
+project's notes and identifier are displayed in the AZ story's
+details.  Each OF task in a project corresponds to an AZ task in the
+corresponding story.  The tasks order is respected.
+
+During synchronization:
+- Any non-completed AZ story that doesn't contain any OF project
+  identifier, or doesn't match any existing OF project, is deleted.
+- An AZ story is created for every OF project not already matched with
+  any AZ story, in the "Ready" phase (the first phase after the
+  "Backlog").
+- Any changes to an OF project is updated in its corresponding AZ
+  story.  Any changes made to an AZ story in AgileZen, except any
+  change of phase, is ignored and overriten with the OF project's
+  information.
+- If an OF project is completed, its corresponding AZ story is moved
+  to the "Done" phase (the last phase before the "Archive").
+  Symmetrically, if an AZ story is in the "Done" or "Archive" phase,
+  its corresponding OF project is marked as completed.
+
+OmniFocus is considered the golden copy of project and task
+information: information is always copied from OmniFocus to AgileZen.
+The only exception is the completion status: moving an AgileZen story
+into a completed phase makes its corresponding project marked as
+completed in OmniFocus, and checking a AgileZen task as completed
+makes its corresponding task marked as completed in OmniFocus.
+
+The selection of OmniFocus projects to synchronize, as well as the
+color of every project story in AgileZen, is easily configurable by
+modifying the lambda functions in omnifocus2agilezen.py.
+
+Feedback, bug reports, and patches are highly appreciated!

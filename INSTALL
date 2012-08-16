@@ -1,0 +1,45 @@
+Installation Instructions
+*************************
+
+Copyright (C) 2012  Romain Lenglet
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.  This file is offered as-is,
+without warranty of any kind.
+
+Creation of an AgileZen API key
+===============================
+
+Synchronizing with AgileZen requires creating an API key for each
+user.  See http://dev.agilezen.com/concepts/authentication.html for
+instructions to create an API key for your user.
+
+Installation Using MacPorts
+===========================
+
+This package's build- and runtime dependencies are:
+* MacPorts http://www.macports.org/
+* Autoconf
+* Automake
+* GNU Make
+* Python 2.7
+* appscript http://appscript.sourceforge.net/
+* Requests http://docs.python-requests.org/
+* certifi (Mozilla's SSL certificates) http://pypi.python.org/pypi/certifi/
+
+Install MacPorts.  Then install the other dependencies as MacPorts
+packages:
+  sudo /opt/local/bin/port install automake autoconf gmake
+  sudo /opt/local/bin/port install python2.7
+  sudo /opt/local/bin/port install py27-appscript py27-requests py27-certifi
+
+Configure and build this package:
+  ./configure PYTHON=/opt/local/bin/python2.7
+  /opt/local/bin/gmake
+
+Build dependencies can be uninstalled:
+  sudo /opt/local/bin/port uninstall -c -u automake autoconf gmake
+
+
+TODO: Document installing and running this package.
