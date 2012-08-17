@@ -1,5 +1,7 @@
 2012-08-17  Romain Lenglet  <romain.lenglet@berabera.info>
 
+	* src/omnifocus2agilezen.py: Handle duplicate task names.
+
 	* src/agilezen.py: Add assertions to test HTTP status codes.
 
 	* src/omnifocus2agilezen.py: Add an OF project's due date into its
