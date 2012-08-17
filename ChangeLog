@@ -1,3 +1,12 @@
+2012-08-17  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* src/omnifocus2agilezen.py (main): Fix the project's name and URL
+	in the help text.
+
+	* src/omnifocus2agilezen.py
+	(OmniFocusToAgileZenSync.sync_projects): Mark tasks as completed
+	in OF if they are completed in AZ.
+
 2012-08-13  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* Initial version.

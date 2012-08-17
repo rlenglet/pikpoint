@@ -306,16 +306,43 @@ class OmniFocusToAgileZenSync(object):
 
                 # Update the tasks in the AgileZen story if any AZ
                 # task or OF task has been added, deleted, or
-                # modified.  Such updates always flow from OF to AZ,
-                # never the other way round: OF is the golden
-                # standard.
+                # modified.  OF is the golden standard for tasks.
+                # Task updates always flow from OF to AZ, never the
+                # other way round, except for completion status: if a
+                # task is marked as completed in either AZ or OF, it
+                # is then marked as completed in the other.  After
+                # sync, each AZ story only contains non-completed
+                # tasks, and completed tasks are deleted in AZ and
+                # marked as completed in OF.
 
                 # First update the set of tasks, regardless of their
                 # order.
+
+                # The current dict of all (completed or not) tasks in
+                # the OF project.
+                of_tasks_dict = dict(
+                    [(task.name, task) for task in of_project.root_task.tasks])
+                # The current list of (completed or not) tasks in the AZ story.
                 az_tasks_old = az_story.tasks
-                # TODO: Mark tasks as completed in OF if they are
-                # completed in AZ.
+
+                # Mark tasks as completed in OF if they are completed
+                # in AZ.
+                for az_task in az_tasks_old:
+                    if az_task.status:  # AZ task is completed.
+                        of_task = of_tasks_dict.get(az_task.text)
+                        if of_task is not None and not of_task.completed:
+                            logging.debug(
+                                'marking as completed OmniFocus task %s "%s" '
+                                'in project %s "%s"', of_task.id, of_task.name,
+                                of_project.id, of_project.name)
+                            self.of_dao.set_task_completed(of_task)
+
+                # The list of currently non-completed tasks,
+                # calculated from the OF project.  This is the desired
+                # list of tasks in the AZ story.  The code below
+                # updates the AZ story to contain exactly this list.
                 az_tasks_new = self._get_az_tasks_for_project(of_project)
+
                 az_tasks_old_dict = dict(
                     [(task.text, task) for task in az_tasks_old])
                 az_tasks_with_ids_dict = az_tasks_old_dict.copy()
@@ -323,7 +350,8 @@ class OmniFocusToAgileZenSync(object):
                     [(task.text, task) for task in az_tasks_new])
                 az_tasks_old_texts = set(az_tasks_old_dict.iterkeys())
                 az_tasks_new_texts = set(az_tasks_new_dict.iterkeys())
-                # Delete completed tasks.
+
+                # Delete tasks in AZ if they are completed in OF.
                 for az_task_text in az_tasks_old_texts - az_tasks_new_texts:
                     az_task = az_tasks_old_dict[az_task_text]
                     logging.debug(
@@ -363,20 +391,20 @@ class OmniFocusToAgileZenSync(object):
 def main():
     default_api_key_file = os.path.expanduser('~/.agilezenapikey')
 
-    # TODO: Get the version number, copyright, and contact information
-    # from configure.
+    # TODO: Get the project name, version number, copyright, and
+    # contact information from configure.
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description='Synchronize OmniFocus with AgileZen',
         prog='omnifocus2agilezen',
-        version='''%(prog)s 0.1~pre1
+        version='''Pikpoint 0.1~pre1
 Copyright (C) 2012 Romain Lenglet
 License AGPLv3+:
 GNU AGPL version 3 or later <http://gnu.org/licenses/agpl-3.0.html>
 This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.''',
         epilog='''Report bugs to: Romain Lenglet <romain.lenglet@berabera.info>
-%(prog)s home page: <FIXME>''')
+Pikpoint home page: <https://github.com/rlenglet/pikpoint>''')
 
     parser.add_argument(
         '-k', '--api-key-file', default=default_api_key_file,
@@ -410,8 +438,8 @@ There is NO WARRANTY, to the extent permitted by law.''',
             break
     assert az_api_key is not None
 
-    logging.info('syncing to AgileZen project %s', az_project)
-    logging.debug('using AgileZen API key %s', az_api_key)
+    logging.info('syncing to AgileZen project "%s"', az_project)
+    logging.debug('using AgileZen API key "%s"', az_api_key)
 
     start_time = datetime.datetime.now()
 
