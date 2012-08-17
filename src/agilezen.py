@@ -207,6 +207,7 @@ class AgileZenDataAccess(object):
     def _get(self, path, params=None):
         url = self.api_base_url + path
         response = requests.get(url, params=params, headers=self._get_headers())
+        assert response.status_code == 200
         return response.json
 
     def _post(self, path, data):
@@ -214,6 +215,7 @@ class AgileZenDataAccess(object):
         if data is not None:
             data = json.dumps(data)
         response = requests.post(url, data=data, headers=self._get_headers())
+        assert response.status_code == 200
         return response.json
 
     def _put(self, path, data):
@@ -221,12 +223,14 @@ class AgileZenDataAccess(object):
         if data is not None:
             data = json.dumps(data)
         response = requests.put(url, data=data, headers=self._get_headers())
+        assert response.status_code == 200
         return response.json
 
     def _delete(self, path, params=None):
         url = self.api_base_url + path
         response = requests.delete(url, params=params,
                                    headers=self._get_headers())
+        assert response.status_code == 200
 
     def _iter_query(self, path, add_params=None):
         page = 1
