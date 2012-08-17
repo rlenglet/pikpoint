@@ -1,5 +1,10 @@
 2012-08-17  Romain Lenglet  <romain.lenglet@berabera.info>
 
+	* src/omnifocus2agilezen.py: Add an OF project's due date into its
+	corresponding AZ story text.  Improve formatting of AZ story text.
+	* src/omnifocus2agilezen.py (main): Add a --due-soon option to set
+	the "due soon" period.
+
 	* src/omnifocus2agilezen.py (main): Fix the project's name and URL
 	in the help text.
 

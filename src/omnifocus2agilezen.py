@@ -30,23 +30,30 @@ import omnifocus
 
 AGILEZEN_API_BASE_URL = 'https://agilezen.com/api/v1/'
 
+DUE_DATE_FORMAT = '%a %b %d %I:%M%p %Y'
+DUE_SOON_DAYS = 3
+
 
 class OmniFocusToAgileZenSync(object):
     """A synchronizer between OmniFocus and AgileZen.
     """
 
-    def __init__(self, omnifocus_dao, agilezen_dao):
+    def __init__(self, omnifocus_dao, agilezen_dao,
+                 due_soon_days=DUE_SOON_DAYS):
         """Initialize this synchronizer with the OF and AZ DAOs.
 
         Args:
             omnifocus_dao: The OmniFocusDataAccess object to use to
                 access the OmniFocus database.
-
             agilezen_dao: The AgileZenDataAccess object to use to
                 access the AgileZen database.
+            due_soon_days: The number of days in the future that is
+                the limit deadline for due dates to become "due soon".
+                Defaults to 3.
         """
         self.of_dao = omnifocus_dao
         self.az_dao = agilezen_dao
+        self.due_soon_delta = datetime.timedelta(days=3)
 
     @classmethod
     def _get_az_story_details(cls, details, of_id):
@@ -74,11 +81,21 @@ class OmniFocusToAgileZenSync(object):
             An AgileZen story's text containing information about the
             OmniFocus project.
         """
-        return '\n'.join(
-            ['**%s**' % (of_project.name,),
-             '%s' % (of_project.full_folder_name,),
-             '*%s*' % (of_project.full_context_name,),
-             ])
+        elements = ['**%s**' % (of_project.name.strip(' '),)]
+        full_folder_name = of_project.full_folder_name.strip(' ')
+        if full_folder_name:
+            elements.append(full_folder_name)
+        full_context_name = of_project.full_context_name.strip(' ')
+        if full_context_name:
+            elements.append('*%s*' % (full_context_name,))
+        due_date = of_project.due_date
+        if due_date:
+            due_date_txt = 'Due ' + due_date.strftime(DUE_DATE_FORMAT)
+            # Make it bold if the deadline is soon (in 3 days or less).
+            if due_date < (datetime.datetime.now() + self.due_soon_delta):
+                due_date_txt = '**%s**' % (due_date_txt,)
+            elements.append(due_date_txt)
+        return '\n'.join(elements)
 
     @classmethod
     def _get_az_story_details_for_project(cls, of_project):
@@ -419,6 +436,12 @@ Pikpoint home page: <https://github.com/rlenglet/pikpoint>''')
         help='the AgileZen project name to sync to')
 
     parser.add_argument(
+        '-d', '--due-soon', default=DUE_SOON_DAYS, type=int,
+        help='the number of days in the future whithin which deadlines are '
+             'considered "due soon" (default: %(default)i)',
+        metavar='DAYS')
+
+    parser.add_argument(
         '-V', '--verbose', action='store_true',
         help='turn on verbose debugging logging to the standard output '
              '(default: off)')
@@ -440,6 +463,7 @@ Pikpoint home page: <https://github.com/rlenglet/pikpoint>''')
 
     logging.info('syncing to AgileZen project "%s"', az_project)
     logging.debug('using AgileZen API key "%s"', az_api_key)
+    logging.debug('projects are due soon in %i days', options.due_soon)
 
     start_time = datetime.datetime.now()
 
@@ -450,7 +474,8 @@ Pikpoint home page: <https://github.com/rlenglet/pikpoint>''')
     agilezen_dao = agilezen.AgileZenDataAccess(
         AGILEZEN_API_BASE_URL, az_api_key, page_size=100)
 
-    sync = OmniFocusToAgileZenSync(omnifocus_dao, agilezen_dao)
+    sync = OmniFocusToAgileZenSync(omnifocus_dao, agilezen_dao,
+                                   due_soon_days=options.due_soon)
     sync.sync_projects(
         # Ignore projects on-hold, "action bags", or not yet scheduled.
         # lambda proj: proj.status == appscript.k.active
