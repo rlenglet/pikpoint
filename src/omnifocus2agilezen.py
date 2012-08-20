@@ -350,7 +350,8 @@ class OmniFocusToAgileZenSync(object):
                 # the OF project.
                 of_tasks_dict = dict(
                     [(task.name, task) for task in of_project.root_task.tasks])
-                # The current list of (completed or not) tasks in the AZ story.
+                # The current list of (completed or not) tasks in the
+                # AZ story, with AZ task IDs, etc.
                 az_tasks_cur = az_story.tasks
 
                 # Mark tasks as completed in OF if they are completed
@@ -373,7 +374,6 @@ class OmniFocusToAgileZenSync(object):
 
                 az_tasks_cur_dict = dict(
                     [(task.text, task) for task in az_tasks_cur])
-                az_tasks_cur_with_ids_dict = az_tasks_cur_dict.copy()
                 az_tasks_new_dict = dict(
                     [(task.text, task) for task in az_tasks_new])
                 az_tasks_cur_texts = set(az_tasks_cur_dict.iterkeys())
@@ -387,7 +387,8 @@ class OmniFocusToAgileZenSync(object):
                         az_task.id, az_task.text, az_story.id, az_story.text)
                     self.az_dao.delete_project_story_task(
                         az_project.id, az_story.id, az_task.id)
-                    del az_tasks_cur_with_ids_dict[az_task.text]
+                    del az_tasks_cur_dict[az_task.text]
+                    az_tasks_cur.remove(az_task)
                 # Add new tasks.
                 for az_task_text in az_tasks_new_texts - az_tasks_cur_texts:
                     az_task = az_tasks_new_dict[az_task_text]
@@ -396,24 +397,25 @@ class OmniFocusToAgileZenSync(object):
                         az_task.text, az_story.id, az_story.text)
                     created_az_task = self.az_dao.create_project_story_task(
                         az_project.id, az_story.id, az_task)
-                    az_tasks_cur_with_ids_dict[created_az_task.text] = \
-                        created_az_task
+                    az_tasks_cur_dict[created_az_task.text] = created_az_task
+                    # Tasks newly created via the API in AgileZen are
+                    # inserted first.
+                    az_tasks_cur.insert(0, created_az_task)
                 # Reorder tasks.
                 az_tasks_cur_ord_texts = [task.text for task in az_tasks_cur]
                 az_tasks_new_ord_texts = [task.text for task in az_tasks_new]
-                # TODO: Reduce the cases where we need to reorder.
                 if az_tasks_cur_ord_texts != az_tasks_new_ord_texts:
                     # Reorder tasks.
                     logging.debug(
                         'reordering AgileZen tasks in story %s "%s"',
                         az_story.id, az_story.text)
-                    # Use the newly created AZ Task objects's IDs,
-                    # following the order of partial Task objects in
-                    # az_tasks_new.
+                    # Use the IDs of previously or newly created AZ
+                    # Task objects, following the order of incomplete
+                    # Task objects in az_tasks_new.
                     import json
                     self.az_dao.reorder_project_story_tasks(
                         az_project.id, az_story.id,
-                        [az_tasks_cur_with_ids_dict[az_task.text].id
+                        [az_tasks_cur_dict[az_task.text].id
                          for az_task in az_tasks_new])
 
 

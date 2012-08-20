@@ -1,5 +1,9 @@
 2012-08-20  Romain Lenglet  <romain.lenglet@berabera.info>
 
+	* src/omnifocus2agilezen.py: Limit the cases where an AgileZen
+	story's tasks are reordered, especially in the case a task is
+	completed or deleted in OmniFocus.
+
 	* src/omnifocus2agilezen.py: Make _get_az_story_text_for_project a
 	non-class method.
 
