@@ -70,8 +70,7 @@ class OmniFocusToAgileZenSync(object):
         """
         return '%s\n[id](%s)' % (details, of_id)
 
-    @classmethod
-    def _get_az_story_text_for_project(cls, of_project):
+    def _get_az_story_text_for_project(self, of_project):
         """Gets an AgileZen story's text from an OmniFocus project.
 
         Args:
