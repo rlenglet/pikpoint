@@ -190,7 +190,7 @@ class OmniFocusToAgileZenSync(object):
                 for task_name in task_names]
 
     def sync_projects(self, of_project_selector, of_color_picker,
-                      az_project_name):
+                      az_project_id):
         """Synchronizes OmniFocus projects as AgileZen stories.
 
         Every OmniFocus project corresponds to one story in an
@@ -204,14 +204,10 @@ class OmniFocusToAgileZenSync(object):
                 object, and returns the color of the corresponding
                 story card, as a string.  The returned color must be
                 in the agilezen.COLORS list.
-            az_project_name: The name of the AgileZen project to
-                contain the stories.
+            az_project_id: The ID of the AgileZen project to contain
+                the stories.
         """
-        # Find the project with the given name.
-        az_project = None
-        for proj in self.az_dao.iter_projects(
-            where='name:%s' % (az_project_name,)):
-            az_project = proj
+        az_project = self.az_dao.get_project(az_project_id)
         assert az_project is not None
 
         az_phases = agilezen.ProjectPhases.parse_phases(
@@ -446,8 +442,9 @@ Pikpoint home page: <https://github.com/rlenglet/pikpoint>''')
         metavar='FILE')
 
     parser.add_argument(
-        '-p', '--project', required=True,
-        help='the AgileZen project name to sync to')
+        '-p', '--project', required=True, type=int,
+        help='the ID of the AgileZen project to sync to',
+        metavar='ID')
 
     parser.add_argument(
         '-d', '--due-soon', default=DUE_SOON_DAYS, type=int,
@@ -467,7 +464,7 @@ Pikpoint home page: <https://github.com/rlenglet/pikpoint>''')
     else:
         logging.basicConfig(level=logging.WARNING)
 
-    az_project = options.project
+    az_project_id = options.project
     az_api_key = None
     with open(options.api_key_file) as f:
         for line in f:
@@ -475,7 +472,7 @@ Pikpoint home page: <https://github.com/rlenglet/pikpoint>''')
             break
     assert az_api_key is not None
 
-    logging.info('syncing to AgileZen project "%s"', az_project)
+    logging.info('syncing to AgileZen project ID %i', az_project_id)
     logging.debug('using AgileZen API key "%s"', az_api_key)
     logging.debug('projects are due soon in %i days', options.due_soon)
 
@@ -503,7 +500,7 @@ Pikpoint home page: <https://github.com/rlenglet/pikpoint>''')
                           or proj.start_date < datetime.datetime.now()),
         lambda proj: 'blue' if proj.full_context_name.startswith('VMware')
                             else 'green',
-        az_project)
+        az_project_id)
 
     end_time = datetime.datetime.now()
     logging.debug('sync completed in %s', end_time - start_time)
