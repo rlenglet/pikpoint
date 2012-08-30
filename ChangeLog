@@ -1,4 +1,9 @@
-2012-08-21  Romain Lenglet  <romain.lenglet@berabera.info
+2012-08-29  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* src/agilezen.py: Use Requests sessions to maintain keep-alive
+	connections to AgileZen.
+
+2012-08-21  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* src/omnifocus2agilezen.py (main): Modified the -p/--project
 	command-line option to take a numerical project ID instead of a

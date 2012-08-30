@@ -196,6 +196,7 @@ class AgileZenDataAccess(object):
         self.api_base_url = api_base_url
         self.api_key = api_key
         self.page_size = page_size
+        self.session = requests.session()
 
     def _get_headers(self):
         return {
@@ -206,7 +207,8 @@ class AgileZenDataAccess(object):
 
     def _get(self, path, params=None):
         url = self.api_base_url + path
-        response = requests.get(url, params=params, headers=self._get_headers())
+        response = self.session.get(url, params=params,
+                                    headers=self._get_headers())
         assert response.status_code == 200
         return response.json
 
@@ -214,7 +216,8 @@ class AgileZenDataAccess(object):
         url = self.api_base_url + path
         if data is not None:
             data = json.dumps(data)
-        response = requests.post(url, data=data, headers=self._get_headers())
+        response = self.session.post(url, data=data,
+                                     headers=self._get_headers())
         assert response.status_code == 200
         return response.json
 
@@ -222,14 +225,15 @@ class AgileZenDataAccess(object):
         url = self.api_base_url + path
         if data is not None:
             data = json.dumps(data)
-        response = requests.put(url, data=data, headers=self._get_headers())
+        response = self.session.put(url, data=data,
+                                    headers=self._get_headers())
         assert response.status_code == 200
         return response.json
 
     def _delete(self, path, params=None):
         url = self.api_base_url + path
-        response = requests.delete(url, params=params,
-                                   headers=self._get_headers())
+        response = self.session.delete(url, params=params,
+                                       headers=self._get_headers())
         assert response.status_code == 200
 
     def _iter_query(self, path, add_params=None):
