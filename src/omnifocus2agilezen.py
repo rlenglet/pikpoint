@@ -437,7 +437,7 @@ Pikpoint home page: <https://github.com/rlenglet/pikpoint>''')
         '-k', '--api-key-file', default=default_api_key_file,
         help='the file containing an AgileZen API key on the first line '
              '(default: %(default)s); '
-             'see <http://dev.agilezen.com/concepts/authentication.html> '
+             'see http://dev.agilezen.com/concepts/authentication.html '
              'to create an API key',
         metavar='FILE')
 
@@ -452,10 +452,24 @@ Pikpoint home page: <https://github.com/rlenglet/pikpoint>''')
              'considered "due soon" (default: %(default)i)',
         metavar='DAYS')
 
-    parser.add_argument(
+    troubleshooting_group = parser.add_argument_group(
+        'optional troubleshooting arguments',
+        'options not intended for general use')
+
+    troubleshooting_group.add_argument(
         '-V', '--verbose', action='store_true',
         help='turn on verbose debugging logging to the standard output '
              '(default: off)')
+
+    troubleshooting_group.add_argument(
+        '--api-base-url', default=AGILEZEN_API_BASE_URL,
+        help='the base URL of the AgileZen API (default: %(default)s)',
+        metavar='URL')
+
+    troubleshooting_group.add_argument(
+        '--disable-verify-ssl-cert', action='store_true',
+        help='disables verifying the SSL certificate of the AgileZen '
+             'API server (default: enabled)')
 
     options = parser.parse_args()
 
@@ -471,9 +485,11 @@ Pikpoint home page: <https://github.com/rlenglet/pikpoint>''')
             az_api_key = line.rstrip('\n\r')
             break
     assert az_api_key is not None
+    verify_ssl_cert = not options.disable_verify_ssl_cert
 
     logging.info('syncing to AgileZen project ID %i', az_project_id)
-    logging.debug('using AgileZen API key "%s"', az_api_key)
+    logging.debug('syncing to URL "%s" using AgileZen API key "%s"',
+                  options.api_base_url, az_api_key)
     logging.debug('projects are due soon in %i days', options.due_soon)
 
     start_time = datetime.datetime.now()
@@ -483,7 +499,8 @@ Pikpoint home page: <https://github.com/rlenglet/pikpoint>''')
     omnifocus_dao = omnifocus.OmniFocusDataAccess(omnifocus_app)
 
     agilezen_dao = agilezen.AgileZenDataAccess(
-        AGILEZEN_API_BASE_URL, az_api_key, page_size=100)
+        options.api_base_url, az_api_key, page_size=100,
+        verify_ssl_cert=verify_ssl_cert)
 
     sync = OmniFocusToAgileZenSync(omnifocus_dao, agilezen_dao,
                                    due_soon_days=options.due_soon)

@@ -192,11 +192,12 @@ class AgileZenDataAccess(object):
     """Provides access to AgileZen projects, stories, tasks, etc.
     """
 
-    def __init__(self, api_base_url, api_key, page_size=100):
+    def __init__(self, api_base_url, api_key, page_size=100,
+                 verify_ssl_cert=True):
         self.api_base_url = api_base_url
         self.api_key = api_key
         self.page_size = page_size
-        self.session = requests.session()
+        self.session = requests.session(verify=verify_ssl_cert)
 
     def _get_headers(self):
         return {

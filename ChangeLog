@@ -1,3 +1,9 @@
+2012-09-05  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* src/omnifocus2agilezen.py, src/agilezen.py: Add the
+	--api-base-url and --disable-verify-ssl-cert command-line options
+	for troubleshooting.
+
 2012-08-29  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* src/agilezen.py: Use Requests sessions to maintain keep-alive
