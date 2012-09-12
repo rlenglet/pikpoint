@@ -88,9 +88,8 @@ class Phase(collections.namedtuple('Phase',
     pass
 
 
-class ProjectPhases(collections.namedtuple('ProjectPhases',
-                                           ('backlog', 'ready', 'done',
-                                            'archive'))):
+class ProjectPhases(collections.namedtuple('ProjectPhases', (
+            'backlog', 'ready', 'first_in_progress', 'done', 'archive'))):
 
     @classmethod
     def parse_phases(cls, phases):
@@ -113,15 +112,18 @@ class ProjectPhases(collections.namedtuple('ProjectPhases',
                 backlog = phase
             elif phase.index == 1:
                 ready = phase
+            elif phase.index == 2:
+                first_in_progress = phase
             elif phase.index == len(phases) - 2:
                 done = phase
             elif phase.index == len(phases) - 1:
                 archive = phase
         assert backlog is not None
         assert ready is not None
+        assert first_in_progress is not None
         assert done is not None
         assert archive is not None
-        return cls(backlog, ready, done, archive)
+        return cls(backlog, ready, first_in_progress, done, archive)
 
 
 class Tag(collections.namedtuple('Tag', ('id', 'name')),

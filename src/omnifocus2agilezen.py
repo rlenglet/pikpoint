@@ -144,16 +144,20 @@ class OmniFocusToAgileZenSync(object):
             OmniFocus project.
         """
         if of_project.status == appscript.k.on_hold:
-            return az_phases.backlog
+            if current_az_phase.id == az_phases.ready.id:
+                return current_az_phase
+            else:
+                return az_phases.backlog
         elif of_project.completed:
             if current_az_phase.id in (az_phases.done.id, az_phases.archive.id):
                 # Already completed too.
                 return current_az_phase
             else:
                 return az_phases.done
-        else:
-            if current_az_phase.id == az_phases.backlog.id:
-                return az_phases.ready
+        else:  # Active, not completed.
+            if current_az_phase.id in (az_phases.backlog.id,
+                                       az_phases.ready.id):
+                return az_phases.first_in_progress
             else:
                 return current_az_phase
 
@@ -245,7 +249,7 @@ class OmniFocusToAgileZenSync(object):
                 None,
                 of_color_picker(of_project),
                 self._get_az_story_phase_for_project(of_project, az_phases,
-                                                     az_phases.ready),
+                                                     az_phases.backlog),
                 None,
                 None,
                 None,
@@ -261,11 +265,11 @@ class OmniFocusToAgileZenSync(object):
             of_project = self.of_dao.get_project_by_id(of_project_id)
 
             delete_az_story = False
-            az_story_is_in_backlog = az_story.phase.id == az_phases.backlog.id
             az_story_is_completed = az_story.phase.id in (
                 az_phases.done.id, az_phases.archive.id)
-            az_story_is_active = not (az_story_is_in_backlog
-                                      or az_story_is_completed)
+            az_story_is_in_progress = az_story.phase.id not in (
+                az_phases.backlog.id, az_phases.ready.id,
+                az_phases.done.id, az_phases.archive.id)
 
             # Delete AZ stories that no more correspond to a selected
             # project in OF, except if the OF project still exists and
@@ -292,7 +296,7 @@ class OmniFocusToAgileZenSync(object):
                 # Which ever of OmniFocus or AgileZen makes a project
                 # / story go forward has precedence on the other re:
                 # the status.
-                if (az_story_is_active
+                if (az_story_is_in_progress
                     and of_project.status == appscript.k.on_hold):
                     logging.debug(
                         'marking as active OmniFocus project %s "%s"',

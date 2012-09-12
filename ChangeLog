@@ -1,3 +1,11 @@
+2012-09-11  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* README: Update the description of status synchronization.
+
+	* src/omnifocus2agilezen.py, src/agilezen.py: Keep "ready"
+	projects on-hold instead of active in OmniFocus.  Only "in
+	progress" projects are now active in OmniFocus.
+
 2012-09-05  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* src/omnifocus2agilezen.py, src/agilezen.py: Add the
