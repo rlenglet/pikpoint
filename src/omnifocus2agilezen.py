@@ -194,7 +194,7 @@ class OmniFocusToAgileZenSync(object):
                 for task_name in task_names]
 
     def sync_projects(self, of_project_selector, of_color_picker,
-                      az_project_id):
+                      az_project_id, owner_username=None):
         """Synchronizes OmniFocus projects as AgileZen stories.
 
         Every OmniFocus project corresponds to one story in an
@@ -210,7 +210,13 @@ class OmniFocusToAgileZenSync(object):
                 in the agilezen.COLORS list.
             az_project_id: The ID of the AgileZen project to contain
                 the stories.
+            owner_username: The username of the owner to assign to all
+                AgileZen stories.  Defaults to None, i.e. no owner.
         """
+        owner = None
+        if owner_username:
+            owner = agilezen.User(None, None, None, owner_username)
+
         az_project = self.az_dao.get_project(az_project_id)
         assert az_project is not None
 
@@ -251,7 +257,7 @@ class OmniFocusToAgileZenSync(object):
                 self._get_az_story_phase_for_project(of_project, az_phases,
                                                      az_phases.backlog),
                 None,
-                None,
+                owner,
                 None,
                 self._get_az_tasks_for_project(of_project))
             logging.debug('creating AgileZen story "%s"', az_story.text)
@@ -312,6 +318,8 @@ class OmniFocusToAgileZenSync(object):
                 # the OF project has been modified.  Such updates
                 # always flow from OF to AZ, never the other way
                 # round: OF is the golden standard.
+                # Ignore the current story's owner if the owner option
+                # is not set, i.e. owner is None.
                 updated_text = self._get_az_story_text_for_project(of_project)
                 updated_details = self._get_az_story_details_for_project(
                     of_project)
@@ -321,7 +329,10 @@ class OmniFocusToAgileZenSync(object):
                 if (az_story.text != updated_text or
                     az_story.details != updated_details or
                     az_story.color != updated_color or
-                    az_story.phase.id != updated_phase.id):
+                    az_story.phase.id != updated_phase.id or
+                    owner is not None and (
+                        az_story.owner is None or
+                        az_story.owner.userName != owner.userName)):
                     logging.debug('updating AgileZen story %s "%s"',
                                   az_story.id, az_story.text)
                     self.az_dao.update_project_story(
@@ -330,7 +341,8 @@ class OmniFocusToAgileZenSync(object):
                             text=updated_text,
                             details=updated_details,
                             color=updated_color,
-                            phase=updated_phase))
+                            phase=updated_phase,
+                            owner=owner))
 
                 # Update the tasks in the AgileZen story if any AZ
                 # task or OF task has been added, deleted, or
@@ -456,6 +468,12 @@ Pikpoint home page: <https://github.com/rlenglet/pikpoint>''')
              'considered "due soon" (default: %(default)i)',
         metavar='DAYS')
 
+    parser.add_argument(
+        '-o', '--owner',
+        help='the username of the owner to assign to all AgileZen stories '
+             '(default: no owner assigned)',
+        metavar='USERNAME')
+
     troubleshooting_group = parser.add_argument_group(
         'optional troubleshooting arguments',
         'options not intended for general use')
@@ -521,7 +539,7 @@ Pikpoint home page: <https://github.com/rlenglet/pikpoint>''')
                           or proj.start_date < datetime.datetime.now()),
         lambda proj: 'blue' if proj.full_context_name.startswith('VMware')
                             else 'green',
-        az_project_id)
+        az_project_id, owner_username=options.owner)
 
     end_time = datetime.datetime.now()
     logging.debug('sync completed in %s', end_time - start_time)

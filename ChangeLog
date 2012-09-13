@@ -1,3 +1,8 @@
+2012-09-12  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* src/omnifocus2agilezen.py: Add the --owner option to set the
+	username of the owner to assign to every story.
+
 2012-09-11  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* README: Update the description of status synchronization.
