@@ -33,6 +33,8 @@ AGILEZEN_API_BASE_URL = 'https://agilezen.com/api/v1/'
 DUE_DATE_FORMAT = '%a %b %d %I:%M%p %Y'
 DUE_SOON_DAYS = 3
 
+LOG = logging.getLogger('omnifocus2agilezen')
+
 
 class OmniFocusToAgileZenSync(object):
     """A synchronizer between OmniFocus and AgileZen.
@@ -217,8 +219,12 @@ class OmniFocusToAgileZenSync(object):
         if owner_username:
             owner = agilezen.User(None, None, None, owner_username)
 
-        az_project = self.az_dao.get_project(az_project_id)
-        assert az_project is not None
+        az_project = None
+        try:
+            az_project = self.az_dao.get_project(az_project_id)
+        except Exception:
+            LOG.error('project ID %i not found', az_project_id)
+            raise ValueError('project ID %i not found' % (az_project_id,))
 
         az_phases = agilezen.ProjectPhases.parse_phases(
             list(self.az_dao.iter_project_phases(az_project.id)))
@@ -229,8 +235,8 @@ class OmniFocusToAgileZenSync(object):
         # Delete stories that have no OmniFocus project ID.
         for az_story in az_stories:
             if self._get_omnifocus_id(az_story) is None:
-                logging.debug('deleting AgileZen story %s "%s"',
-                              az_story.id, az_story.text)
+                LOG.debug('deleting AgileZen story %s "%s"',
+                          az_story.id, az_story.text)
                 self.az_dao.delete_project_story(az_project.id, az_story.id)
 
         # TODO: Check for duplicates, i.e. multiple stories with the
@@ -260,7 +266,7 @@ class OmniFocusToAgileZenSync(object):
                 owner,
                 None,
                 self._get_az_tasks_for_project(of_project))
-            logging.debug('creating AgileZen story "%s"', az_story.text)
+            LOG.debug('creating AgileZen story "%s"', az_story.text)
             self.az_dao.create_project_story(az_project.id, az_story)
 
         # TODO: Copy the project's "estimated_minutes" into the
@@ -288,8 +294,8 @@ class OmniFocusToAgileZenSync(object):
                 or of_project.status == appscript.k.dropped)
 
             if delete_az_story:
-                logging.debug('deleting AgileZen story %s "%s"',
-                              az_story.id, az_story.text)
+                LOG.debug('deleting AgileZen story %s "%s"',
+                          az_story.id, az_story.text)
                 self.az_dao.delete_project_story(az_project.id, az_story.id)
             else:
                 # Update the OmniFocus project.  The only update that
@@ -304,12 +310,12 @@ class OmniFocusToAgileZenSync(object):
                 # the status.
                 if (az_story_is_in_progress
                     and of_project.status == appscript.k.on_hold):
-                    logging.debug(
+                    LOG.debug(
                         'marking as active OmniFocus project %s "%s"',
                         of_project.id, of_project.name)
                     self.of_dao.set_project_active(of_project)
                 elif az_story_is_completed and not of_project.completed:
-                    logging.debug(
+                    LOG.debug(
                         'marking as completed OmniFocus project %s "%s"',
                         of_project.id, of_project.name)
                     self.of_dao.set_project_completed(of_project)
@@ -333,8 +339,8 @@ class OmniFocusToAgileZenSync(object):
                     owner is not None and (
                         az_story.owner is None or
                         az_story.owner.userName != owner.userName)):
-                    logging.debug('updating AgileZen story %s "%s"',
-                                  az_story.id, az_story.text)
+                    LOG.debug('updating AgileZen story %s "%s"',
+                              az_story.id, az_story.text)
                     self.az_dao.update_project_story(
                         az_project.id,
                         az_story._replace(
@@ -372,7 +378,7 @@ class OmniFocusToAgileZenSync(object):
                     if az_task.status:  # AZ task is completed.
                         of_task = of_tasks_dict.get(az_task.text)
                         if of_task is not None and not of_task.completed:
-                            logging.debug(
+                            LOG.debug(
                                 'marking as completed OmniFocus task %s "%s" '
                                 'in project %s "%s"', of_task.id, of_task.name,
                                 of_project.id, of_project.name)
@@ -394,7 +400,7 @@ class OmniFocusToAgileZenSync(object):
                 # Delete tasks in AZ if they are completed in OF.
                 for az_task_text in az_tasks_cur_texts - az_tasks_new_texts:
                     az_task = az_tasks_cur_dict[az_task_text]
-                    logging.debug(
+                    LOG.debug(
                         'deleting AgileZen task %s "%s" in story %s "%s"',
                         az_task.id, az_task.text, az_story.id, az_story.text)
                     self.az_dao.delete_project_story_task(
@@ -404,7 +410,7 @@ class OmniFocusToAgileZenSync(object):
                 # Add new tasks.
                 for az_task_text in az_tasks_new_texts - az_tasks_cur_texts:
                     az_task = az_tasks_new_dict[az_task_text]
-                    logging.debug(
+                    LOG.debug(
                         'creating AgileZen task "%s" in story %s "%s"',
                         az_task.text, az_story.id, az_story.text)
                     created_az_task = self.az_dao.create_project_story_task(
@@ -418,7 +424,7 @@ class OmniFocusToAgileZenSync(object):
                 az_tasks_new_ord_texts = [task.text for task in az_tasks_new]
                 if az_tasks_cur_ord_texts != az_tasks_new_ord_texts:
                     # Reorder tasks.
-                    logging.debug(
+                    LOG.debug(
                         'reordering AgileZen tasks in story %s "%s"',
                         az_story.id, az_story.text)
                     # Use the IDs of previously or newly created AZ
@@ -506,18 +512,22 @@ Pikpoint home page: <https://github.com/rlenglet/pikpoint>''')
         for line in f:
             az_api_key = line.rstrip('\n\r')
             break
-    assert az_api_key is not None
+    if not az_api_key:
+        LOG.error('no API key found in file "%s"', options.api_key_file)
+        raise ValueError('invalid key file "%s"' % (options.api_key_file,))
     verify_ssl_cert = not options.disable_verify_ssl_cert
 
-    logging.info('syncing to AgileZen project ID %i', az_project_id)
-    logging.debug('syncing to URL "%s" using AgileZen API key "%s"',
-                  options.api_base_url, az_api_key)
-    logging.debug('projects are due soon in %i days', options.due_soon)
+    LOG.info('syncing to AgileZen project ID %i', az_project_id)
+    LOG.debug('syncing to URL "%s" using AgileZen API key "%s"',
+              options.api_base_url, az_api_key)
+    LOG.debug('projects are due soon in %i days', options.due_soon)
 
     start_time = datetime.datetime.now()
 
     omnifocus_app = appscript.app(name='OmniFocus')
-    assert omnifocus_app.isrunning()
+    if not omnifocus_app.isrunning():
+        LOG.error('OmniFocus is not running')
+        raise IOError('OmniFocus is not running')
     omnifocus_dao = omnifocus.OmniFocusDataAccess(omnifocus_app)
 
     agilezen_dao = agilezen.AgileZenDataAccess(
@@ -542,7 +552,7 @@ Pikpoint home page: <https://github.com/rlenglet/pikpoint>''')
         az_project_id, owner_username=options.owner)
 
     end_time = datetime.datetime.now()
-    logging.debug('sync completed in %s', end_time - start_time)
+    LOG.debug('sync completed in %s', end_time - start_time)
 
 
 if __name__ == '__main__':

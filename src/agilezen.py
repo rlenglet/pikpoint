@@ -20,6 +20,7 @@
 import collections
 import datetime
 import json
+import logging
 
 # Requests
 # URL: http://docs.python-requests.org/
@@ -28,6 +29,8 @@ import requests
 
 
 TIME_FORMAT = '%Y-%m-%dT%H:%M:%S'
+
+LOG = logging.getLogger('agilezen')
 
 
 class JsonSerializable(object):
@@ -118,11 +121,21 @@ class ProjectPhases(collections.namedtuple('ProjectPhases', (
                 done = phase
             elif phase.index == len(phases) - 1:
                 archive = phase
-        assert backlog is not None
-        assert ready is not None
-        assert first_in_progress is not None
-        assert done is not None
-        assert archive is not None
+        if backlog is None:
+            LOG.error('no "backlog" phase found')
+            raise ValueError('no "backlog" phase found')
+        if ready is None:
+            LOG.error('no "ready" phase found')
+            raise ValueError('no "ready" phase found')
+        if first_in_progress is None:
+            LOG.error('no "in progress" phase found')
+            raise ValueError('no "in progress" phase found')
+        if done is None:
+            LOG.error('no "done" phase found')
+            raise ValueError('no "done" phase found')
+        if archive is None:
+            LOG.error('no "archive" phase found')
+            raise ValueError('no "archive" phase found')
         return cls(backlog, ready, first_in_progress, done, archive)
 
 
@@ -212,7 +225,10 @@ class AgileZenDataAccess(object):
         url = self.api_base_url + path
         response = self.session.get(url, params=params,
                                     headers=self._get_headers())
-        assert response.status_code == 200
+        if response.status_code != 200:
+            LOG.error('HTTP request failed with status code %i',
+                         response.status_code)
+            raise IOError('HTTP request failed')
         return response.json
 
     def _post(self, path, data):
@@ -221,7 +237,10 @@ class AgileZenDataAccess(object):
             data = json.dumps(data)
         response = self.session.post(url, data=data,
                                      headers=self._get_headers())
-        assert response.status_code == 200
+        if response.status_code != 200:
+            LOG.error('HTTP request failed with status code %i',
+                         response.status_code)
+            raise IOError('HTTP request failed')
         return response.json
 
     def _put(self, path, data):
@@ -230,14 +249,20 @@ class AgileZenDataAccess(object):
             data = json.dumps(data)
         response = self.session.put(url, data=data,
                                     headers=self._get_headers())
-        assert response.status_code == 200
+        if response.status_code != 200:
+            LOG.error('HTTP request failed with status code %i',
+                         response.status_code)
+            raise IOError('HTTP request failed')
         return response.json
 
     def _delete(self, path, params=None):
         url = self.api_base_url + path
         response = self.session.delete(url, params=params,
                                        headers=self._get_headers())
-        assert response.status_code == 200
+        if response.status_code != 200:
+            LOG.error('HTTP request failed with status code %i',
+                         response.status_code)
+            raise IOError('HTTP request failed')
 
     def _iter_query(self, path, add_params=None):
         page = 1

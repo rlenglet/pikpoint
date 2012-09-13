@@ -1,5 +1,8 @@
 2012-09-12  Romain Lenglet  <romain.lenglet@berabera.info>
 
+	* src/agilezen.py, src/omnifocus2agilezen.py: Replace asserts with
+	logging.  Use a custom logger instead of the root logger.
+
 	* src/omnifocus2agilezen.py: Add the --owner option to set the
 	username of the owner to assign to every story.
 
