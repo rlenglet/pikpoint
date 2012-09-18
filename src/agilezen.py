@@ -334,6 +334,14 @@ class AgileZenDataAccess(object):
                           'stories', str(story.id)]),
                 data=story.to_json()))
 
+    def update_project_story_task(self, project_id, story_id, task):
+        return Task.create_from_json(
+            self._put(
+                '/'.join(['projects', str(project_id),
+                          'stories', str(story_id),
+                          'tasks', str(task.id)]),
+                data=task.to_json()))
+
     def reorder_project_story_tasks(self, project_id, story_id, task_ids):
         json_tasks = self._put(
                 '/'.join(['projects', str(project_id),

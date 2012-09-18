@@ -181,19 +181,16 @@ class OmniFocusToAgileZenSync(object):
         # OmniFocus task ID in there.  We rely on text comparisons to
         # synchronize tasks.  So first remove any duplicate tasks
         # texts.
-        # Don't include tasks completed in OmniFocus, so that
-        # completed tasks are deleted from AgileZen stories during
-        # synchronization.
-        task_names_dups = [task.name for task in of_project.root_task.tasks
-                           if not task.completed]
+        task_names_dups = [(task.name, task.completed)
+                           for task in of_project.root_task.tasks]
         task_names_set = set()
-        task_names = []
-        for task_name in task_names_dups:
+        tasks = []
+        for task_name, task_completed in task_names_dups:
             if task_name not in task_names_set:
                 task_names_set.add(task_name)
-                task_names.append(task_name)
-        return [agilezen.Task(None, task_name, None, None, None, False)
-                for task_name in task_names]
+                tasks.append(agilezen.Task(None, task_name, None, None, None,
+                                           task_completed))
+        return tasks
 
     def sync_projects(self, of_project_selector, of_color_picker,
                       az_project_id, owner_username=None):
@@ -371,33 +368,28 @@ class OmniFocusToAgileZenSync(object):
                 # The current list of (completed or not) tasks in the
                 # AZ story, with AZ task IDs, etc.
                 az_tasks_cur = az_story.tasks
-
-                # Mark tasks as completed in OF if they are completed
-                # in AZ.
-                for az_task in az_tasks_cur:
-                    if az_task.status:  # AZ task is completed.
-                        of_task = of_tasks_dict.get(az_task.text)
-                        if of_task is not None and not of_task.completed:
-                            LOG.debug(
-                                'marking as completed OmniFocus task %s "%s" '
-                                'in project %s "%s"', of_task.id, of_task.name,
-                                of_project.id, of_project.name)
-                            self.of_dao.set_task_completed(of_task)
-
-                # The list of currently non-completed tasks,
-                # calculated from the OF project.  This is the desired
-                # list of tasks in the AZ story.  The code below
-                # updates the AZ story to contain exactly this list.
-                az_tasks_new = self._get_az_tasks_for_project(of_project)
-
                 az_tasks_cur_dict = dict(
                     [(task.text, task) for task in az_tasks_cur])
+                az_tasks_cur_texts = set(az_tasks_cur_dict.iterkeys())
+
+                # The list of AZ tasks reflecting the list of tasks in
+                # the OF project, both completed and non-completed.
+                # This is the desired list of tasks in the AZ story.
+                # If a story has been set as completed in AZ, set it
+                # also as completed in the target list.  The code
+                # below updates the AZ story to contain exactly this
+                # list.
+                az_tasks_new = [
+                    task._replace(status=True)
+                        if not task.status and az_tasks_cur_dict.has_key(task.text)
+                            and az_tasks_cur_dict[task.text].status
+                        else task
+                    for task in self._get_az_tasks_for_project(of_project)]
                 az_tasks_new_dict = dict(
                     [(task.text, task) for task in az_tasks_new])
-                az_tasks_cur_texts = set(az_tasks_cur_dict.iterkeys())
                 az_tasks_new_texts = set(az_tasks_new_dict.iterkeys())
 
-                # Delete tasks in AZ if they are completed in OF.
+                # Delete tasks in AZ if they are deleted in OF.
                 for az_task_text in az_tasks_cur_texts - az_tasks_new_texts:
                     az_task = az_tasks_cur_dict[az_task_text]
                     LOG.debug(
@@ -419,7 +411,31 @@ class OmniFocusToAgileZenSync(object):
                     # Tasks newly created via the API in AgileZen are
                     # inserted first.
                     az_tasks_cur.insert(0, created_az_task)
-                # Reorder tasks.
+
+                # Update the status of tasks, either in AgileZen or
+                # OmniFocus.  If a task on any side is complete, the
+                # other is also marked as complete.
+                for az_task_new in az_tasks_new:
+                    az_task_cur = az_tasks_cur_dict[az_task_new.text]
+                    if az_task_new.status and not az_task_cur.status:
+                        # Mark the task as completed in AZ.
+                        LOG.debug('marking as completed AgileZen task "%s" '
+                                  'in story %s "%s"',
+                                  az_task_new.text, az_story.id, az_story.text)
+                        az_task_new = az_task_cur._replace(status=True)
+                        self.az_dao.update_project_story_task(
+                            az_project.id, az_story.id, az_task_new)
+                    elif az_task_cur.status:
+                        # Mark the tasks as completed in OF.
+                        of_task = of_tasks_dict.get(az_task_new.text)
+                        if of_task is not None and not of_task.completed:
+                            LOG.debug(
+                                'marking as completed OmniFocus task %s "%s" '
+                                'in project %s "%s"', of_task.id, of_task.name,
+                                of_project.id, of_project.name)
+                            self.of_dao.set_task_completed(of_task)
+                        
+                # Second, reorder tasks.
                 az_tasks_cur_ord_texts = [task.text for task in az_tasks_cur]
                 az_tasks_new_ord_texts = [task.text for task in az_tasks_new]
                 if az_tasks_cur_ord_texts != az_tasks_new_ord_texts:
@@ -428,8 +444,8 @@ class OmniFocusToAgileZenSync(object):
                         'reordering AgileZen tasks in story %s "%s"',
                         az_story.id, az_story.text)
                     # Use the IDs of previously or newly created AZ
-                    # Task objects, following the order of incomplete
-                    # Task objects in az_tasks_new.
+                    # Task objects, following the order of Task
+                    # objects in az_tasks_new.
                     import json
                     self.az_dao.reorder_project_story_tasks(
                         az_project.id, az_story.id,
