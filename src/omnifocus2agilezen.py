@@ -86,9 +86,6 @@ class OmniFocusToAgileZenSync(object):
         full_folder_name = of_project.full_folder_name.strip(' ')
         if full_folder_name:
             elements.append(full_folder_name)
-        full_context_name = of_project.full_context_name.strip(' ')
-        if full_context_name:
-            elements.append('*%s*' % (full_context_name,))
         due_date = of_project.due_date
         if due_date:
             due_date_txt = 'Due ' + due_date.strftime(DUE_DATE_FORMAT)
@@ -110,7 +107,26 @@ class OmniFocusToAgileZenSync(object):
             OmniFocus project, and the project's ID.
         """
         return cls._get_az_story_details(of_project.note,
-                                               of_project.id)
+                                         of_project.id)
+
+    @classmethod
+    def _get_az_tags_for_project(cls, of_project):
+        """Gets the AgileZen tags matching the contexts of an OmniFocus project.
+
+        Args:
+            of_project: The OmniFocus project to get tags from.
+
+        Returns:
+            The set of AgileZen tags corresponding the contexts of the
+            actions of the OmniFocus project.
+        """
+        tag_names = set()
+        for task in of_project.root_task.tasks:
+            all_full_context_names = task.all_full_context_names
+            if all_full_context_names:
+                tag_names.update([n.strip(' ').lower()
+                                  for n in all_full_context_names])
+        return set([agilezen.Tag(None, tag_name) for tag_name in tag_names])
 
     @classmethod
     def _get_omnifocus_id(cls, az_story):
@@ -228,7 +244,9 @@ class OmniFocusToAgileZenSync(object):
 
         of_projects_dict = self.of_dao.get_projects(of_project_selector)
         az_stories = list(self.az_dao.iter_project_stories(
-                az_project.id, with_details=True, with_tasks=True))
+                az_project.id, with_details=True, with_tags=True,
+                with_tasks=True))
+
         # Delete stories that have no OmniFocus project ID.
         for az_story in az_stories:
             if self._get_omnifocus_id(az_story) is None:
@@ -247,6 +265,9 @@ class OmniFocusToAgileZenSync(object):
         of_project_ids = set(of_projects_dict.iterkeys())
         az_of_project_ids = set(az_stories_dict.iterkeys())
 
+        # Collect the current and final sets of tags, to delete unused tags.
+        all_used_tags = set()
+
         # Add new AZ stories for new OF projects.
         for of_project_id in of_project_ids - az_of_project_ids:
             _, of_project = of_projects_dict[of_project_id]
@@ -261,8 +282,9 @@ class OmniFocusToAgileZenSync(object):
                                                      az_phases.backlog),
                 None,
                 owner,
-                None,
+                self._get_az_tags_for_project(of_project),
                 self._get_az_tasks_for_project(of_project))
+            all_used_tags.update(az_story.tags)
             LOG.debug('creating AgileZen story "%s"', az_story.text)
             self.az_dao.create_project_story(az_project.id, az_story)
 
@@ -347,6 +369,16 @@ class OmniFocusToAgileZenSync(object):
                             phase=updated_phase,
                             owner=owner))
 
+                # Update the AgileZen story's tags.
+                updated_tags = self._get_az_tags_for_project(of_project)
+                all_used_tags.update(updated_tags)
+                if (set([tag.name for tag in az_story.tags])
+                        != set([tag.name for tag in updated_tags])):
+                    LOG.debug('updating AgileZen tags in story %s "%s"',
+                              az_story.id, az_story.text)
+                    self.az_dao.update_project_story_tags(
+                        az_project.id, az_story.id, updated_tags)
+
                 # Update the tasks in the AgileZen story if any AZ
                 # task or OF task has been added, deleted, or
                 # modified.  OF is the golden standard for tasks.
@@ -381,7 +413,8 @@ class OmniFocusToAgileZenSync(object):
                 # list.
                 az_tasks_new = [
                     task._replace(status=True)
-                        if not task.status and az_tasks_cur_dict.has_key(task.text)
+                        if not task.status
+                            and az_tasks_cur_dict.has_key(task.text)
                             and az_tasks_cur_dict[task.text].status
                         else task
                     for task in self._get_az_tasks_for_project(of_project)]
@@ -451,6 +484,15 @@ class OmniFocusToAgileZenSync(object):
                         az_project.id, az_story.id,
                         [az_tasks_cur_dict[az_task.text].id
                          for az_task in az_tasks_new])
+
+        # Delete tags that are now unused, after having dissociated
+        # them from AZ stories.
+        all_tags = self.az_dao.iter_project_tags(az_project_id)
+        all_used_tag_names = set([tag.name for tag in all_used_tags])
+        for tag in all_tags:
+            if tag.name not in all_used_tag_names:
+                LOG.debug('deleting AgileZen tag %i "%s"', tag.id, tag.name)
+                self.az_dao.delete_project_tag(az_project.id, tag.id)
 
 
 def main():

@@ -113,7 +113,7 @@ class OmniFocusLazyAppScriptObject(LazyAppScriptObject):
     """
 
     def _get_app_attr(self, name):
-        if name == 'full_context_name':
+        if name in ('full_context_name', 'all_full_context_names'):
             name_parts = []
             has_parent = True
             context = self.context
@@ -122,7 +122,11 @@ class OmniFocusLazyAppScriptObject(LazyAppScriptObject):
                 parent = context.container
                 has_parent = (parent != context.containing_document)
                 context = parent
-            return '/'.join(name_parts)
+            if name == 'full_context_name':
+                return '/'.join(name_parts)
+            else:  # Return the whole hierarchy.
+                return ['/'.join(name_parts[:i])
+                        for i in xrange(1, len(name_parts)+1)]
         elif name == 'full_folder_name':
             name_parts = []
             has_parent = True

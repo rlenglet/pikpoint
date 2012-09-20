@@ -152,7 +152,7 @@ class Task(collections.namedtuple('Task',
     def _field_to_json(self, field):
         if field == 'status':
             return 'complete' if self.status else 'incomplete'
-        if field in ('createTime', 'finishTime'):
+        elif field in ('createTime', 'finishTime'):
             return getattr(self, field).strftime(TIME_FORMAT)
         elif field == 'finishedBy':
             return self.finishedBy.to_json()
@@ -163,7 +163,7 @@ class Task(collections.namedtuple('Task',
     def _json_to_field(cls, field, json_value):
         if field == 'status':
             return json_value == 'complete'
-        if field in ('createTime', 'finishTime'):
+        elif field in ('createTime', 'finishTime'):
             return datetime.datetime.strptime(json_value[:19], TIME_FORMAT)
         elif field == 'finishedBy':
             return User.create_from_json(json_value)
@@ -193,11 +193,11 @@ class Story(collections.namedtuple('Story',
     def _json_to_field(cls, field, json_value):
         if field == 'phase':
             return Phase.create_from_json(json_value)
-        if field in ('creator', 'owner'):
+        elif field in ('creator', 'owner'):
             return User.create_from_json(json_value)
-        if field == 'tags':
-            return [Tag.create_from_json(tag) for tag in json_value]
-        if field == 'tasks':
+        elif field == 'tags':
+            return set([Tag.create_from_json(tag) for tag in json_value])
+        elif field == 'tasks':
             return [Task.create_from_json(task) for task in json_value]
         else:
             return json_value
@@ -297,6 +297,11 @@ class AgileZenDataAccess(object):
             '/'.join(['projects', str(project_id), 'phases'])):
             yield Phase.create_from_json(json_obj)
 
+    def iter_project_tags(self, project_id):
+        for json_obj in self._iter_query(
+            '/'.join(['projects', str(project_id), 'tags'])):
+            yield Tag.create_from_json(json_obj)
+
     def iter_project_stories(self, project_id, with_details=False,
                              with_tags=False, with_tasks=False):
         # TODO: Support adding filters.
@@ -312,6 +317,12 @@ class AgileZenDataAccess(object):
             '/'.join(['projects', str(project_id), 'stories']),
             add_params=add_params):
             yield Story.create_from_json(json_obj)
+
+    def create_project_tag(self, project_id, tag):
+        return Tag.create_from_json(
+            self._post(
+                '/'.join(['projects', str(project_id), 'tags']),
+                data=tag.to_json()))
 
     def create_project_story(self, project_id, story):
         return Story.create_from_json(
@@ -349,6 +360,18 @@ class AgileZenDataAccess(object):
                           'tasks']),
                 data=task_ids)
         return [Task.create_from_json(json_task) for json_task in json_tasks]
+
+    def update_project_story_tags(self, project_id, story_id, tags):
+        return Story.create_from_json(
+            self._put(
+                '/'.join(['projects', str(project_id),
+                          'stories', str(story_id),
+                          'tags']),
+                data=[tag.to_json() for tag in tags]))
+
+    def delete_project_tag(self, project_id, tag_id):
+        self._delete('/'.join(['projects', str(project_id),
+                               'tags', str(tag_id)]))
 
     def delete_project_story(self, project_id, story_id):
         self._delete('/'.join(['projects', str(project_id),

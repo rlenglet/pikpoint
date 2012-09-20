@@ -1,3 +1,9 @@
+2012-09-19  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* src/omnifocus2agilezen.py, src/agilezen.py, src/omnifocus.py:
+	Synchronize an OmniFocus project's task contexts as tags in its
+	AgileZen story.
+
 2012-09-17  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* src/agilezen.py, src/omnifocus2agilezen.py: Keep completed tasks
