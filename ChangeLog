@@ -4,6 +4,10 @@
 	Synchronize an OmniFocus project's task contexts as tags in its
 	AgileZen story.
 
+	* src/omnifocus2agilezen.py: Include start and due dates in
+	AgileZen tasks, which fixes the handling of repeated tasks.  Stop
+	ignoring singleton task holder projects.
+
 2012-09-17  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* src/agilezen.py, src/omnifocus2agilezen.py: Keep completed tasks

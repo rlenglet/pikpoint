@@ -30,7 +30,8 @@ import omnifocus
 
 AGILEZEN_API_BASE_URL = 'https://agilezen.com/api/v1/'
 
-DUE_DATE_FORMAT = '%a %b %d %I:%M%p %Y'
+STORY_DUE_DATE_FORMAT = '%a %b %d %I:%M%p %Y'
+TASK_DATE_FORMAT = '%a %b %d %I:%M%p %Y'
 DUE_SOON_DAYS = 3
 
 LOG = logging.getLogger('omnifocus2agilezen')
@@ -88,7 +89,7 @@ class OmniFocusToAgileZenSync(object):
             elements.append(full_folder_name)
         due_date = of_project.due_date
         if due_date:
-            due_date_txt = 'Due ' + due_date.strftime(DUE_DATE_FORMAT)
+            due_date_txt = 'Due ' + due_date.strftime(STORY_DUE_DATE_FORMAT)
             # Make it bold if the deadline is soon (in 3 days or less).
             if due_date < (datetime.datetime.now() + self.due_soon_delta):
                 due_date_txt = '**%s**' % (due_date_txt,)
@@ -180,7 +181,32 @@ class OmniFocusToAgileZenSync(object):
                 return current_az_phase
 
     @staticmethod
-    def _get_az_tasks_for_project(of_project):
+    def _get_az_task_name(of_task):
+        """Gets the name of an AgileZen task from an OmniFocus project's task.
+
+        Args:
+            of_task: The OmniFocus project task to get data from to
+                construct the task's name.
+
+        Returns:
+            The AgileZen task name corresponding the the OmniFocus
+            project task's data.
+        """
+        name = of_task.name
+        if of_task.start_date is not None or of_task.due_date is not None:
+            name += ' ('
+            if of_task.start_date is not None:
+                name += 'from ' + of_task.start_date.strftime(TASK_DATE_FORMAT)
+                if of_task.due_date is not None:
+                    name += ', '
+            if of_task.due_date is not None:
+                name += 'due ' + of_task.due_date.strftime(TASK_DATE_FORMAT)
+            name = name + ')'
+        # TODO: Also append the context?
+        return name
+
+    @classmethod
+    def _get_az_tasks_for_project(cls, of_project):
         """Gets a list of AgileZen tasks from an OmniFocus project's tasks.
 
         Tasks are de-duplicated: only the first task in an OmniFocus
@@ -196,9 +222,12 @@ class OmniFocusToAgileZenSync(object):
         # Task text is plain text, not Markdown, so we can't hide any
         # OmniFocus task ID in there.  We rely on text comparisons to
         # synchronize tasks.  So first remove any duplicate tasks
-        # texts.
-        task_names_dups = [(task.name, task.completed)
-                           for task in of_project.root_task.tasks]
+        # texts.  To reduce the risk of collision, and to support
+        # repeated tasks properly, the start and due dates are
+        # appended to the task's name.
+        task_names_dups = [
+            (cls._get_az_task_name(of_task), of_task.completed)
+            for of_task in of_project.root_task.tasks]
         task_names_set = set()
         tasks = []
         for task_name, task_completed in task_names_dups:
@@ -396,7 +425,8 @@ class OmniFocusToAgileZenSync(object):
                 # The current dict of all (completed or not) tasks in
                 # the OF project.
                 of_tasks_dict = dict(
-                    [(task.name, task) for task in of_project.root_task.tasks])
+                    [(self._get_az_task_name(of_task), of_task)
+                     for of_task in of_project.root_task.tasks])
                 # The current list of (completed or not) tasks in the
                 # AZ story, with AZ task IDs, etc.
                 az_tasks_cur = az_story.tasks
@@ -595,14 +625,8 @@ Pikpoint home page: <https://github.com/rlenglet/pikpoint>''')
     sync = OmniFocusToAgileZenSync(omnifocus_dao, agilezen_dao,
                                    due_soon_days=options.due_soon)
     sync.sync_projects(
-        # Ignore projects on-hold, "action bags", or not yet scheduled.
-        # lambda proj: proj.status == appscript.k.active
-        #              and not proj.singleton_action_holder
-        #              and (proj.start_date is None
-        #                   or proj.start_date < datetime.datetime.now()),
-        # Ignore "action bags", or projects not yet scheduled.
+        # Ignore projects that are dropped or not yet scheduled.
         lambda proj: proj.status != appscript.k.dropped
-                     and not proj.singleton_action_holder
                      and (proj.start_date is None
                           or proj.start_date < datetime.datetime.now()),
         lambda proj: 'blue' if proj.full_context_name.startswith('VMware')
