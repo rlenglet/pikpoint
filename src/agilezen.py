@@ -212,7 +212,8 @@ class AgileZenDataAccess(object):
         self.api_base_url = api_base_url
         self.api_key = api_key
         self.page_size = page_size
-        self.session = requests.session(verify=verify_ssl_cert)
+        self.session = requests.session()
+        self.session.verify = verify_ssl_cert
 
     def _get_headers(self):
         return {
@@ -229,7 +230,7 @@ class AgileZenDataAccess(object):
             LOG.error('HTTP request failed with status code %i',
                          response.status_code)
             raise IOError('HTTP request failed')
-        return response.json
+        return response.json()
 
     def _post(self, path, data):
         url = self.api_base_url + path
@@ -241,7 +242,7 @@ class AgileZenDataAccess(object):
             LOG.error('HTTP request failed with status code %i',
                          response.status_code)
             raise IOError('HTTP request failed')
-        return response.json
+        return response.json()
 
     def _put(self, path, data):
         url = self.api_base_url + path
@@ -253,7 +254,7 @@ class AgileZenDataAccess(object):
             LOG.error('HTTP request failed with status code %i',
                          response.status_code)
             raise IOError('HTTP request failed')
-        return response.json
+        return response.json()
 
     def _delete(self, path, params=None):
         url = self.api_base_url + path

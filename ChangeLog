@@ -1,3 +1,7 @@
+2013-02-25  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* src/agilezen.py: Upgraded to a newer Requests version.
+
 2012-09-19  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* src/omnifocus2agilezen.py, src/agilezen.py, src/omnifocus.py:
