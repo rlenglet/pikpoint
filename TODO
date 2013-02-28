@@ -1,0 +1,14 @@
+- Document Pikpoint's concept in README
+- Document how tasks and tags are synchronized in Pikpoint's README
+- Complete Pikpoint's INSTALL manual
+- Update Pikpoint's home page in the command-line help text
+- Stop synchronizing OmniFocus tasks that are not yet scheduled
+- Improve the logging of story names: use %r instead of "%s"
+- Mark AgileZen stories as blocked when in progress in AgileZen and on
+  hold in OmniFocus
+- Remove 'VMware' from the sources
+- Add context tags only to non-completed tasks
+- Automatically set the version number, copyright, and contact
+  information in Pikpoint's main program via configure
+- Reorder AgileZen stories via the API, to match the order of stories
+  in OmniFocus

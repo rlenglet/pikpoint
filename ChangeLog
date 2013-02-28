@@ -1,3 +1,7 @@
+2013-02-27  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* TODO: Add to-do list.
+
 2013-02-25  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* src/agilezen.py: Upgraded to a newer Requests version.
